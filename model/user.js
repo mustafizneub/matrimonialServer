@@ -18,17 +18,12 @@ const userSchema=new mongoose.Schema({
     },
     mobile:{
         type:String,
-    }
-    ,
+    },
     email:{
         type:String,
     },
     password:{
         type:String,
-    },
-    date:{
-        type:String,
-        default:new Date().toISOString
     }
 },{
     timestamps:true

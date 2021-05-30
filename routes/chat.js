@@ -6,11 +6,11 @@ const conversation = require('../model/messageModel');
 router.post('/create-conversation', async (req, res, next) => {
     try {
         req.body.messages.userID = req.body.from;
-        await conversation.findOne({ roomID: req.body.from.concat(req.body.to) || req.body.to.concat(req.body.from) }, async (err, doc) => {
+        await conversation.findOne({ roomID: { $in: [req.body.from.concat(req.body.to), req.body.to.concat(req.body.from)] } }, async (err, doc) => {
             if (err) {
                 next(err)
             }
-            if (doc) {
+            else if (doc) {
                 await conversation.updateOne(
                     { _id: doc._id },
                     { $push: { messages: req.body.messages } },
@@ -40,6 +40,7 @@ router.post('/create-conversation', async (req, res, next) => {
                         body: doc
                     })
                 })
+
             }
         })
     } catch (err) {
@@ -56,15 +57,15 @@ router.get('/conversation/:userId', async (req, res, next) => {
     try {
         await conversation.aggregate([
             {
-                $match: { from: req.params.userId },
+                $match: { $or: [{ from: req.params.userId }, { to: req.params.userId }] },
+                $sort: { updatedAt: -1 },
                 $lookup: {
-
                     from: "conversation",
                     localField: "from",
                     foreignField: "_id",
                     as: "userInfo"
 
-                }
+                },
             }
         ]).exec(err, result => {
             if (err) {
@@ -118,7 +119,7 @@ router.delete('/delete-conversation/:id', async (req, res, next) => {
 
 })
 
-router.post('block-user/:userId', async (req, res, next) => {
+router.post('/block-user/:userId', async (req, res, next) => {
     try {
         await conversation.updateOne(
             { _id: req.params.userId },
@@ -127,14 +128,14 @@ router.post('block-user/:userId', async (req, res, next) => {
                     blocked: req.body.blocked
                 }
             },
-            (err, res) => {
+            (err, resp) => {
                 if (err) {
                     next(err)
                 }
                 res.status(200).json({
                     statusCode: 200,
                     message: req.body.blocked == 0 ? 'user unblocked successfully' : 'user blocked successfully',
-                    body: res
+                    body: resp
                 })
             }
         )
@@ -142,6 +143,23 @@ router.post('block-user/:userId', async (req, res, next) => {
         next(err)
     }
 
+})
+
+router.delete('/delete-message/:conversationID', async (req, res, next) => {
+    await conversation.updateOne({ _id: req.params.conversationID },
+        { $pull: { messages: { _id: req.query.id } } },
+        { multi: true },
+        (err, resp) => {
+            if (err) {
+                next(err)
+            }
+            res.status(200).json({
+                statusCode: 200,
+                message: 'message Deleted Succesfully',
+                body: resp
+            })
+        }
+    )
 })
 
 module.exports = router
