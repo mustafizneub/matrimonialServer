@@ -11,7 +11,9 @@ var chatRouter = require('./routes/chat');
 var authRouter = require('./routes/auth');
 
 var app = express();
-var port = 4000;
+var port = 3001;
+var http = require('http').createServer(app);
+var io = require('socket.io')(http);
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
@@ -45,8 +47,12 @@ app.use(function (err, req, res, next) {
 });
 
 connectDB();
-app.listen(port, () => {
+http.listen(port, () => {
   console.log(`Example app listening at http://localhost:${port}`)
+})
+
+io.on('connection',(socket)=>{
+  console.log('new client connected')
 })
 
 module.exports = app;
