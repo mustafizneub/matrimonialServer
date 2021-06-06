@@ -47,12 +47,19 @@ app.use(function (err, req, res, next) {
 });
 
 connectDB();
-http.listen(port, () => {
-  console.log(`Example app listening at http://localhost:${port}`)
-})
-
 io.on('connection',(socket)=>{
   console.log('new client connected')
+  socket.on('pmessage',(data)=>{
+    console.log(data)
+    socket.broadcast.emit('message',data)
+  })
+  socket.on('disconnect',()=>{
+    console.log('disconnected')
+  })
+})
+
+http.listen(port, () => {
+  console.log(`Example app listening at http://localhost:${port}`)
 })
 
 module.exports = app;
