@@ -10,7 +10,8 @@ router.post('/create-conversation', async (req, res, next) => {
         let resp;
         console.log(Conversation)
         if (Conversation !== null) {
-            resp = await Conversation.updateOne({ $push: { messages: req.body.messages } });
+            await Conversation.updateOne({ $push: { messages: req.body.messages } });
+            resp = await conversation.findOne({ roomID: { $in: [req.body.from.concat(req.body.to), req.body.to.concat(req.body.from)] } })
 
         } else {
             resp = await conversation.create({ ...req.body, roomID: req.body.from.concat(req.body.to) })
