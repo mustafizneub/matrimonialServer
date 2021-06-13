@@ -11,24 +11,76 @@ router.post('/create-conversation', async (req, res, next) => {
         console.log(Conversation)
         if (Conversation !== null) {
             await Conversation.updateOne({ $push: { messages: req.body.messages } });
-            resp = await conversation.findOne({ roomID: { $in: [req.body.from.concat(req.body.to), req.body.to.concat(req.body.from)] } })
+            // resp = await conversation.findOne({ roomID: { $in: [req.body.from.concat(req.body.to), req.body.to.concat(req.body.from)] } }).lean();
+            resp = await conversation.aggregate([
+                {
+                    $match: { _id: ObjectID(Conversation._id) }
+                },
+                {
+                    $lookup: {
 
-        } else {
-            resp = await conversation.create({ ...req.body, roomID: req.body.from.concat(req.body.to) })
-        }
-        if (resp.nModified === 1) {
+                        from: "users",
+                        localField: (req.query.userID == req.body.to)? "to":"from",
+                        foreignField: "_id",
+                        as: "userInfo"
+
+                    }
+                },
+                {
+                    $unwind: { path: '$userInfo' }
+                },
+                {
+                    $project: { _id: 1, messages: 1, roomID: 1, "fname": '$userInfo.fname', "userID": '$userInfo._id', "email": '$userInfo.email' }
+                }
+            ])
             return res.status(200).json({
                 statusCode: 200,
                 message: 'Successfully updated',
-                body: resp
+                body:resp[0]
+                // body: Object.assign(req.body.messages, { date: new Date().toISOString() })
             })
         } else {
+            data = await conversation.create({ ...req.body, roomID: req.body.from.concat(req.body.to) })
+            resp = await conversation.aggregate([
+                {
+                    $match: { _id: ObjectID(data._id) }
+                },
+                {
+                    $lookup: {
+
+                        from: "users",
+                        localField: "from",
+                        foreignField: "_id",
+                        as: "userInfo"
+
+                    }
+                },
+                {
+                    $unwind: { path: '$userInfo' }
+                },
+                {
+                    $project: { _id: 1, messages: 1, roomID: 1, "fname": '$userInfo.fname', "userID": '$userInfo._id', "email": '$userInfo.email' }
+                }
+            ])
             return res.status(201).json({
                 statusCode: 201,
                 message: 'Successfully Created',
-                body: resp
+                body: resp[0]
             })
         }
+        // if (resp.nModified === 1) {
+        //     return res.status(200).json({
+        //         statusCode: 200,
+        //         message: 'Successfully updated',
+        //         body: Object.assign(req.body.messages, { date: new Date().toISOString() })
+        //     })
+        // } else {
+        //     return res.status(201).json({
+        //         statusCode: 201,
+        //         message: 'Successfully Created',
+        //         body: resp
+        //     })
+        // }
     } catch (err) {
         next(err)
     }
@@ -37,6 +89,7 @@ router.post('/create-conversation', async (req, res, next) => {
 router.get('/conversation/:userId', async (req, res, next) => {
     try {
         console.log(req.params.userId)
+        const Conversation = await conversation.findOne({ $or: [{ from: ObjectID(req.params.userId) }, { to: ObjectID(req.params.userId) }] }).lean();
         const data = await conversation.aggregate([
             {
                 $match: { $or: [{ from: ObjectID(req.params.userId) }, { to: ObjectID(req.params.userId) }] }
@@ -45,14 +98,17 @@ router.get('/conversation/:userId', async (req, res, next) => {
                 $lookup: {
 
                     from: "users",
-                    localField: "to",
+                    localField: (Conversation.from == req.params.userId)? "to":"from",
                     foreignField: "_id",
                     as: "userInfo"
 
                 }
             },
             {
-                $project: { _id: 1, messages: 1, roomID: 1, userInfo: { _id: 1, fname: 1, email: 1 } }
+                $unwind: { path: '$userInfo' }
+            },
+            {
+                $project: { _id: 1, messages: 1, roomID: 1, "fname": '$userInfo.fname', "userID": '$userInfo._id', "email": '$userInfo.email' }
             }
         ])
         console.log(data)
@@ -70,7 +126,7 @@ router.get('/conversation/:userId', async (req, res, next) => {
 
 router.get('/message/:conversationId', async (req, res, next) => {
     try {
-        const data = await conversation.findById(req.params.conversationId, { _id: 1, messages: 1 })
+        const data = await conversation.findById(req.params.conversationId, { _id: 1, messages: 1 }).lean();
         if (data !== null) {
             return res.status(200).json({
                 statusCode: 200,

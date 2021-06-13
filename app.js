@@ -9,6 +9,7 @@ var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
 var chatRouter = require('./routes/chat');
 var authRouter = require('./routes/auth');
+var adminRouter = require('./routes/admin');
 
 var app = express();
 var port = 3001;
@@ -29,6 +30,7 @@ app.use('/', indexRouter);
 app.use('/users', usersRouter);
 app.use('/', chatRouter);
 app.use('/',authRouter);
+app.use('/',adminRouter);
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {
@@ -48,7 +50,7 @@ app.use(function (err, req, res, next) {
 
 connectDB();
 io.on('connection',(socket)=>{
-  console.log('new client connected')
+  console.log('new client connected',socket.id)
   socket.on('pmessage',(data)=>{
     console.log(data)
     socket.broadcast.emit('message',data)

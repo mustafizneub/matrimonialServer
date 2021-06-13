@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-User = require('../model/user')
+const User = require('../model/user')
 var bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
@@ -16,8 +16,8 @@ router.post('/signup', (req, res) => {
       }
       bcrypt.hash(password, 12).then((hashedpassword) => {
         req.body.password = hashedpassword;
-        const user = new User(req.body);
-
+        let user = new User(req.body);
+        user.userID = user._id;
         user.save()
           .then((user) => {
             return res.status(201).json({
@@ -76,11 +76,15 @@ router.post('/signin', async (req, res, next) => {
 });
 
 router.post('/update-profile/:userID', async (req, res, next) => {
+  console.log(req.body, req.params.userID)
   try {
-    const user = await User.findOne({ _id: userID }).lean()
+    const user = await User.findOne({ _id: req.params.userID })
+    console.log(user,'user...')
     let resp;
     if (user !== null) {
-      resp = await user.updateOne(...req.body)
+      console.log('here')
+      resp = await user.updateOne({$set:{...req.body}})
+      console.log(resp,'updated')
       if (resp.nModified === 1) {
         return res.status(200).json({
           statusCode: 200,
@@ -108,7 +112,7 @@ router.post('/update-profile/:userID', async (req, res, next) => {
 router.get('/search', async (req, res, next) => {
   try {
     console.log(req.query.text, "text")
-    const data = await User.find({ $text: { $search: req.query.text } }).select("_id fname lname email mobile").lean()
+    const data = await User.find({ $text: { $search: req.query.text } }).select("_id fname lname email mobile userID").lean()
     console.log(data, "data...")
     if (data && data.length > 0) {
       return res.status(200).json({
